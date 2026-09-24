@@ -32,7 +32,7 @@ def create_app(config):
     resolver = Resolver(tmdb, psapi, cache)
     known = KnownSeries(config["server"]["state"])
     specs = SpecBuilder(psapi, config["spec"])
-    release = release_labels(config)
+    labels = release_labels(config)
 
     def authorised():
         expected = config["server"]["api_key"]
@@ -56,7 +56,7 @@ def create_app(config):
                 series.tvdb_id,
                 int(season["id"]),
                 psapi.episodes(series.slug, season["id"]),
-                release,
+                labels,
                 download_url,
             )
             if wanted_episode is None
