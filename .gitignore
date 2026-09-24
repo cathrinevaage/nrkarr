@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# The real config carries the TMDB key; only the example ships.
+config.yml
+known-series.json
+.DS_Store

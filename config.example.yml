@@ -1,0 +1,37 @@
+server:
+  host: 0.0.0.0
+  port: 9121
+  api_key: changeme
+  url_base: ""            # when behind a reverse proxy, e.g. "/nrkarr"
+  state: /config/known-series.json   # series Sonarr has had resolved, for RSS
+
+# Resolves a tvdbid to the series' original (Norwegian) title, which is
+# what NRK knows it as. TVDB and Sonarr hold the English title.
+# A TMDB API Read Access Token; free, from themoviedb.org settings.
+tmdb:
+  api_key: ""
+
+nrk:
+  base_url: https://psapi.nrk.no
+  timeout: 20
+
+# Carried in the faux NZB and handed to the download client verbatim.
+spec:
+  format: "bestvideo[height<=1080]+bestaudio/best"
+  subs: [nb-nor]
+  embed: [subs, chapters, thumbnail, metadata]
+  container: mkv
+
+release:
+  group: Nrkarr
+  source: NRK
+  resolution: 1080p
+  video_codec: H.264
+  audio_codec: AAC2.0
+  # Sonarr acts on the advertised size, so it has to be a real number.
+  # yt-dlp reports ~15 Mbps for 1440p HEVC on NRK; 1080p AVC sits near
+  # a third of that. Tune here if releases start failing size limits.
+  bitrate_mbps: 5
+
+cache:
+  ttl: 300                # seconds; psapi is fast, this just spares it
