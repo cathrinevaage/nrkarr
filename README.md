@@ -59,6 +59,21 @@ Sonarr acts on the advertised size, so `release.bitrate_mbps` should
 be roughly right for the format in `spec.format`. NRK's 1080p streams
 run 6-9 Mbps; the default of 5 sits under that.
 
+### Environment overrides
+
+Any scalar or list setting can be set from the environment as
+`NRKARR_<SECTION>_<KEY>`, which wins over the file:
+
+```
+NRKARR_TMDB_API_KEY=...
+NRKARR_SERVER_API_KEY=...
+NRKARR_SERVER_STATE=/config/known-series.json
+NRKARR_SPEC_SUBS=nb-nor,nb-ttv
+```
+
+With those two keys in the environment no config file is needed at
+all; the defaults cover the rest.
+
 ### Compose
 
 ```yaml
