@@ -83,3 +83,38 @@ class DispositionTest(unittest.TestCase):
         header = _disposition("Still Breathing - S01E06 - – dash 「")
 
         header.encode("latin-1")
+
+
+class FauxNzbTest(unittest.TestCase):
+    """Sonarr's NzbValidationService runs on every grab before any
+    download client sees the file: the root must be <nzb> and there
+    must be at least one <file>. These replay those checks."""
+
+    def render(self, name="LIS - S01E01 - Nattevakt"):
+        from nrkarr.nzb import job_spec, render
+
+        defaults = {"format": "best", "subs": ["nb-nor"], "embed": [], "container": "mkv"}
+        return render(job_spec("https://tv.nrk.no/se?v=X", name, defaults))
+
+    def test_passes_sonarrs_validation(self):
+        from xml.etree import ElementTree
+
+        root = ElementTree.fromstring(self.render().encode())
+        namespace = root.tag[: root.tag.index("}") + 1]
+
+        self.assertEqual(root.tag, f"{namespace}nzb")
+        self.assertGreaterEqual(len(root.findall(f"{namespace}file")), 1)
+
+    def test_spec_survives_intact(self):
+        import json
+        from xml.etree import ElementTree
+
+        root = ElementTree.fromstring(self.render().encode())
+        spec = next(m.text for m in root.iter() if m.get("type") == "ytdlpspec")
+
+        self.assertEqual(json.loads(spec)["url"], "https://tv.nrk.no/se?v=X")
+
+    def test_quotes_in_a_title_do_not_break_the_attribute(self):
+        from xml.etree import ElementTree
+
+        ElementTree.fromstring(self.render(name='Show - S01E01 - "Quoted" & <odd>').encode())

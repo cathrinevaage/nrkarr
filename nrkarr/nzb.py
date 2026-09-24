@@ -2,11 +2,14 @@
 
 Newznab's download URL is opaque to Sonarr: the indexer decides what
 goes in it, the client decides what to do with it. So it need not be
-an NZB at all - but NZB-shaped keeps Sonarr's usenet path happy, and
-the spec rides along in a meta tag.
+an NZB at all - but it must pass Sonarr's NzbValidationService, which
+runs before any download client sees it: root element <nzb>, and at
+least one <file>. The spec rides in a meta tag; the file entry is a
+placeholder the client never reads.
 """
 
 import json
+import time
 from xml.sax.saxutils import escape
 
 TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
@@ -17,6 +20,14 @@ TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <meta type="name">{name}</meta>
     <meta type="ytdlpspec">{spec}</meta>
   </head>
+  <file poster="nrkarr" date="{date}" subject="{name}">
+    <groups>
+      <group>alt.binaries.ytdlparr</group>
+    </groups>
+    <segments>
+      <segment bytes="0" number="1">ytdlpspec@nrkarr</segment>
+    </segments>
+  </file>
 </nzb>
 """
 
@@ -39,8 +50,9 @@ def job_spec(watch_url, name, defaults):
 def render(spec):
     """An NZB-shaped envelope carrying the spec verbatim."""
     return TEMPLATE.format(
-        name=escape(spec["name"]),
+        name=escape(spec["name"], {'"': "&quot;"}),
         spec=escape(json.dumps(spec, ensure_ascii=False)),
+        date=int(time.time()),
     )
 
 
