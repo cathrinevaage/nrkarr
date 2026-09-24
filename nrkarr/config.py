@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yaml
 
+from . import env
+
 DEFAULTS = {
     "server": {
         "host": "0.0.0.0",
@@ -54,10 +56,8 @@ def merge(base, override):
 
 
 def load(path):
-    """Read a YAML config, filling anything absent from DEFAULTS."""
+    """Defaults, then the YAML file, then environment overrides."""
     source = Path(path)
+    from_file = yaml.safe_load(source.read_text()) if source.exists() else {}
 
-    if not source.exists():
-        return deepcopy(DEFAULTS)
-
-    return merge(DEFAULTS, yaml.safe_load(source.read_text()))
+    return env.apply(merge(DEFAULTS, from_file))
