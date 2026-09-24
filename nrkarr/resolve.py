@@ -74,7 +74,10 @@ class Resolver:
             return _slug(candidates[0])
 
         if expected_year is None:
-            return _slug(candidates[0])
+            raise Unresolved(
+                f"{len(candidates)} NRK series share the title and TMDB "
+                "gives no first-air year to split them on"
+            )
 
         for candidate in candidates:
             if self._production_year(_slug(candidate)) == expected_year:

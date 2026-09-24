@@ -99,6 +99,20 @@ class ResolverTest(unittest.TestCase):
 
         self.assertEqual(subject.resolve(457520).slug, "hjem-2026")
 
+    def test_refuses_a_tie_when_tmdb_has_no_first_air_date(self):
+        """TMDB entries can carry an empty first_air_date; with nothing
+        to split a tie on, return nothing rather than the first hit."""
+        subject = resolver(
+            FakeTmdb({**NORWEGIAN, "original_name": "Hjem", "first_air_date": ""}),
+            FakePsapi([
+                {"title": "Hjem", "url": "serie/a", "hasRights": True},
+                {"title": "Hjem", "url": "serie/b", "hasRights": True},
+            ]),
+        )
+
+        with self.assertRaises(Unresolved):
+            subject.resolve(457520)
+
     def test_refuses_when_no_candidate_matches_the_year(self):
         subject = resolver(
             FakeTmdb({**NORWEGIAN, "original_name": "Hjem"}),
