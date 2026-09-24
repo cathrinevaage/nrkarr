@@ -1,17 +1,21 @@
 """The Newznab endpoint, plus the faux NZB the client fetches."""
 
+import logging
 from urllib.parse import quote
 
 from flask import Flask, Response, request
 
 from . import nzb, releases
 from .cache import TtlCache
+from .http import FetchError
 from .known_series import KnownSeries
 from .naming import to_ascii
 from .newznab import CAPS, feed
 from .psapi import Psapi
 from .resolve import Resolver, Unresolved
 from .tmdb import Tmdb
+
+log = logging.getLogger(__name__)
 
 XML = "application/xml; charset=utf-8"
 NZB = "application/x-nzb; charset=utf-8"
@@ -59,9 +63,14 @@ def create_app(config):
     def targeted_search(tvdb_id):
         try:
             series = resolver.resolve(tvdb_id)
-        except Unresolved:
+        except Unresolved as reason:
+            log.info("tvdbid %s: %s", tvdb_id, reason)
+            return []
+        except FetchError as error:
+            log.error("tvdbid %s: upstream failure: %s", tvdb_id, error)
             return []
 
+        log.info("tvdbid %s -> %s (%s)", tvdb_id, series.slug, series.title)
         known.remember(series)
 
         return releases_for(
@@ -102,7 +111,12 @@ def create_app(config):
             return Response(f"unsupported mode {mode!r}", status=400)
 
         tvdb_id = request.args.get("tvdbid", type=int)
-        found = rss() if tvdb_id is None else targeted_search(tvdb_id)
+
+        try:
+            found = rss() if tvdb_id is None else targeted_search(tvdb_id)
+        except FetchError as error:
+            log.error("search failed upstream: %s", error)
+            found = []
 
         return Response(feed(found), mimetype=XML)
 

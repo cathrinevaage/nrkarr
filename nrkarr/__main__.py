@@ -1,3 +1,4 @@
+import logging
 import os
 
 from .app import create_app
@@ -5,6 +6,10 @@ from .config import load
 
 
 def main():
+    logging.basicConfig(
+        level=os.environ.get("LOG_LEVEL", "INFO"),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     config = load(os.environ.get("NRKARR_CONFIG", "config.yml"))
     app = create_app(config)
 
