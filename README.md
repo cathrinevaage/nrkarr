@@ -20,12 +20,14 @@ Sonarr   grabs -> GET /nzb/<token> -> faux NZB with the job spec -> ytdlparr
 
 The TMDB hop exists because TVDB (and so Sonarr) holds the English
 title - tvdb 457520 is "Still Breathing" - while NRK only knows the
-series as "LIS". TMDB's `original_name` is the bridge. Series whose
-`original_language` is not Norwegian are rejected before NRK is asked.
+series as "LIS". TMDB's `original_name` is the bridge.
 
-When several NRK series share a title, the one whose production year
-matches TMDB's first-air year wins; if none does, the search returns
-nothing rather than guessing.
+Only NRK series whose title matches `original_name` exactly (ignoring
+case) count. psapi's search is fuzzy, and a fuzzy hit for a series NRK
+does not carry must never become a release. When several NRK series
+share the exact title, the one whose production year matches TMDB's
+first-air year wins; if none does, the search returns nothing rather
+than guessing.
 
 ## RSS
 
@@ -81,7 +83,18 @@ Settings → Indexers → Add → Newznab:
 | API Path | `/api` |
 | API Key | `server.api_key` |
 | Categories | 5000 |
-| Download Client | ytdlparr, category `tv-nrk` |
+| **Download Client** | **ytdlparr** - not "Any" |
+
+**The Download Client field is not optional.** What nrkarr serves as an
+"NZB" is a job spec that only ytdlparr understands. Left on "Any",
+Sonarr hands grabs to whichever usenet client it picks - and a real
+SABnzbd or NZBGet given nrkarr's file fails the download with no
+articles to fetch. Pin this indexer to ytdlparr.
+
+The reverse also has to hold: every *other* usenet indexer must be
+pinned to your real usenet client, so no real NZB is ever sent to
+ytdlparr. See [ytdlparr's README](https://github.com/cathrinevaage/ytdlparr#routing-only-job-specs-must-reach-ytdlparr)
+for why "Any" is not safe on those either.
 
 NRK is geo-blocked to Norway. nrkarr's own lookups work from anywhere;
 the fetch ytdlparr does must originate in Norway.
