@@ -1,6 +1,8 @@
 import logging
 import os
 
+from waitress import serve
+
 from .app import create_app
 from .config import load
 
@@ -13,9 +15,11 @@ def main():
     config = load(os.environ.get("NRKARR_CONFIG", "config.yml"))
     app = create_app(config)
 
-    app.run(
+    serve(
+        app,
         host=config["server"]["host"],
         port=config["server"]["port"],
+        threads=8,
     )
 
 

@@ -1,8 +1,8 @@
 FROM alpine:3.20
 
-RUN apk add --no-cache python3 py3-pip \
+RUN apk add --no-cache python3 py3-pip tzdata \
  && pip install --break-system-packages --no-cache-dir \
-      "flask>=3.0" "pyyaml>=6.0"
+      "flask>=3.0" "pyyaml>=6.0" "waitress>=3.0"
 
 WORKDIR /app
 COPY nrkarr ./nrkarr
