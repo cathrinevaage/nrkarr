@@ -6,7 +6,7 @@ hand-maintained: tvdbid -> original title -> psapi search -> slug.
 
 from dataclasses import dataclass
 
-from .tmdb import is_norwegian, original_title
+from .tmdb import original_title
 
 
 class Unresolved(Exception):
@@ -55,24 +55,21 @@ class Resolver:
         if series is None:
             raise Unresolved(f"tvdbid {tvdb_id} unknown to TMDB")
 
-        if not is_norwegian(series):
-            raise Unresolved(f"tvdbid {tvdb_id} is not a Norwegian series")
-
         title = original_title(series)
         hits = [hit for hit in self.psapi.search(title) if has_rights(hit)]
-        candidates = exact_matches(hits, title) or hits
+        candidates = exact_matches(hits, title)
 
         if not candidates:
-            raise Unresolved(f"no NRK series titled {title!r}")
+            raise Unresolved(f"no NRK series titled exactly {title!r}")
 
         slug = self._most_confident(candidates, first_air_year(series))
 
         return ResolvedSeries(tvdb_id=tvdb_id, slug=slug, title=title)
 
     def _most_confident(self, candidates, expected_year):
-        """One exact title match is taken as read. Anything else is
-        checked against the production year, because a common-word
-        title returns the wrong series first."""
+        """One exact title match is taken as read. Several are split
+        on production year, because a common-word title can name more
+        than one NRK series."""
         if len(candidates) == 1:
             return _slug(candidates[0])
 

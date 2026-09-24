@@ -49,14 +49,28 @@ class ResolverTest(unittest.TestCase):
 
         self.assertEqual(subject.resolve(457520).slug, "lis")
 
-    def test_rejects_a_series_not_originally_norwegian(self):
+    def test_never_falls_back_to_a_fuzzy_hit(self):
+        """psapi search is fuzzy; a single inexact hit for a title NRK
+        does not carry must not become a release."""
         subject = resolver(
-            FakeTmdb({**NORWEGIAN, "original_language": "en"}),
-            FakePsapi([]),
+            FakeTmdb({**NORWEGIAN, "original_name": "Breaking Bad"}),
+            FakePsapi([
+                {"title": "Bad", "url": "serie/bad", "hasRights": True},
+            ]),
         )
 
         with self.assertRaises(Unresolved):
-            subject.resolve(1)
+            subject.resolve(81189)
+
+    def test_title_match_ignores_case(self):
+        subject = resolver(
+            FakeTmdb({**NORWEGIAN, "original_name": "Lis"}),
+            FakePsapi([
+                {"title": "LIS", "url": "serie/lis", "hasRights": True},
+            ]),
+        )
+
+        self.assertEqual(subject.resolve(457520).slug, "lis")
 
     def test_ignores_hits_nrk_has_no_rights_to(self):
         subject = resolver(
@@ -71,7 +85,7 @@ class ResolverTest(unittest.TestCase):
 
     def test_breaks_a_common_word_tie_on_production_year(self):
         subject = resolver(
-            FakeTmdb(NORWEGIAN),
+            FakeTmdb({**NORWEGIAN, "original_name": "Hjem"}),
             FakePsapi(
                 [
                     {"title": "Hjem", "url": "serie/hjem-1990",
@@ -87,7 +101,7 @@ class ResolverTest(unittest.TestCase):
 
     def test_refuses_when_no_candidate_matches_the_year(self):
         subject = resolver(
-            FakeTmdb(NORWEGIAN),
+            FakeTmdb({**NORWEGIAN, "original_name": "Hjem"}),
             FakePsapi(
                 [
                     {"title": "Hjem", "url": "serie/a", "hasRights": True},

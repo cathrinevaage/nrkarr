@@ -50,8 +50,3 @@ class Tmdb:
 def original_title(series):
     return series.get("original_name") or series.get("name")
 
-
-def is_norwegian(series):
-    """A cheap pre-filter: a series not originally in Norwegian is not
-    plausibly an NRK production."""
-    return series.get("original_language") in ("no", "nb", "nn")
