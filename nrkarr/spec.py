@@ -3,6 +3,7 @@ from where, and what each stream is called. All the NRK knowledge the
 download client must not have lives here."""
 
 import logging
+import re
 
 from . import hls
 from .http import FetchError
@@ -39,6 +40,22 @@ class SpecBuilder:
             spec["audio"].append(described)
 
         return spec
+
+    def codec_label(self, prf_id):
+        """What the release name should say the video codec is, from
+        the programme's master and the configured height cap; None
+        when the master cannot be read."""
+        _, master_text, _ = self.master(prf_id)
+
+        if not master_text:
+            return None
+
+        return hls.codec_label(hls.video_variants(master_text), self.max_height())
+
+    def max_height(self):
+        found = re.search(r"height<=(\d+)", self.config["video"].get("format", ""))
+
+        return int(found.group(1)) if found else 10**6
 
     def master(self, prf_id):
         """The playback manifest and the full HLS master it points at.

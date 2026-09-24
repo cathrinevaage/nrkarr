@@ -67,3 +67,12 @@ class AudioGroupTest(unittest.TestCase):
         self.assertEqual(hls.audio_selector(groups, 2), "bestaudio[format_id^=aud2]")
         self.assertEqual(hls.audio_selector(groups, 6), "bestaudio[format_id^=aud3]")
         self.assertIsNone(hls.audio_selector(groups, 8))
+
+
+class CodecLabelTest(unittest.TestCase):
+    def test_names_what_ytdlp_will_pick_within_the_cap(self):
+        variants = hls.video_variants(MASTER)
+
+        self.assertEqual(hls.codec_label(variants, 1080), "HEVC")
+        self.assertEqual(hls.codec_label(variants, 720), "H.264")
+        self.assertIsNone(hls.codec_label(variants, 200))

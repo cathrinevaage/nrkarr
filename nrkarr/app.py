@@ -34,6 +34,13 @@ def create_app(config):
     specs = SpecBuilder(psapi, config["spec"])
     labels = release_labels(config)
 
+    def labels_for(episode):
+        """The codec in the name follows the programme, cached per id."""
+        prf_id = episode["prfId"]
+        codec = cache.get(f"codec:{prf_id}", lambda: specs.codec_label(prf_id))
+
+        return {**labels, "video_codec": codec} if codec else labels
+
     def authorised():
         expected = config["server"]["api_key"]
 
@@ -56,7 +63,7 @@ def create_app(config):
                 series.tvdb_id,
                 int(season["id"]),
                 psapi.episodes(series.slug, season["id"]),
-                labels,
+                labels_for,
                 download_url,
             )
             if wanted_episode is None

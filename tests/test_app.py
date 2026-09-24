@@ -34,12 +34,22 @@ class RouteTest(unittest.TestCase):
     def test_tvsearch_returns_one_release_per_episode(self):
         with patch("nrkarr.app.Resolver.resolve", return_value=ResolvedSeries(1, "show", "Show")), \
              patch("nrkarr.app.Psapi.seasons", return_value=[{"id": "1", "type": "season", "status": "playable"}]), \
-             patch("nrkarr.app.Psapi.episodes", return_value=[EPISODE]):
+             patch("nrkarr.app.Psapi.episodes", return_value=[EPISODE]), \
+             patch("nrkarr.app.SpecBuilder.codec_label", return_value="HEVC"):
             response = self.client.get("/api?t=tvsearch&tvdbid=1&season=1&ep=1&apikey=k")
 
         self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
         titles = [t.text for t in ElementTree.fromstring(response.data).iter("title")][1:]
-        self.assertEqual(titles, ["Show.S01E01.Pilot.1080p.NRK.WEB-DL.DD5.1.H.264-Nrkarr"])
+        self.assertEqual(titles, ["Show.S01E01.Pilot.1080p.NRK.WEB-DL.DD5.1.HEVC-Nrkarr"])
+
+    def test_codec_falls_back_to_config_when_the_master_is_unreadable(self):
+        with patch("nrkarr.app.Resolver.resolve", return_value=ResolvedSeries(1, "show", "Show")), \
+             patch("nrkarr.app.Psapi.seasons", return_value=[{"id": "1", "type": "season", "status": "playable"}]), \
+             patch("nrkarr.app.Psapi.episodes", return_value=[EPISODE]), \
+             patch("nrkarr.app.SpecBuilder.codec_label", return_value=None):
+            response = self.client.get("/api?t=tvsearch&tvdbid=1&season=1&ep=1&apikey=k")
+
+        self.assertIn(b"DD5.1.H.264-Nrkarr", response.data)
 
     def test_rss_after_a_search_lists_the_remembered_series(self):
         with patch("nrkarr.app.Resolver.resolve", return_value=ResolvedSeries(1, "show", "Show")), \

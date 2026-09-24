@@ -147,3 +147,38 @@ def audio_selector(groups, channels):
         return None
 
     return f"bestaudio[format_id^={matching[0]['group']}]"
+
+
+# yt-dlp's own codec preference, best first; the release name says
+# what it will pick.
+CODEC_PREFERENCE = (("av01", "AV1"), ("hvc1", "HEVC"), ("hev1", "HEVC"), ("avc1", "H.264"), ("avc3", "H.264"))
+
+
+def video_variants(master_text):
+    """(codec, height) for every variant stream in the master."""
+    variants = []
+
+    for line in master_text.splitlines():
+        if not line.startswith("#EXT-X-STREAM-INF:"):
+            continue
+
+        found = attributes(line)
+        codecs = found.get("CODECS", "")
+        resolution = found.get("RESOLUTION", "0x0")
+        height = int(resolution.split("x")[-1] or 0) if "x" in resolution else 0
+        video = next((c for c in codecs.split(",") if not c.startswith("mp4a") and not c.startswith("ac-3") and not c.startswith("ec-3")), "")
+        variants.append({"codec": video, "height": height})
+
+    return variants
+
+
+def codec_label(variants, max_height):
+    """The label for the codec yt-dlp will choose within max_height,
+    or None when the master says nothing usable."""
+    eligible = [v for v in variants if v["height"] and v["height"] <= max_height]
+
+    for prefix, label in CODEC_PREFERENCE:
+        if any(v["codec"].startswith(prefix) for v in eligible):
+            return label
+
+    return None

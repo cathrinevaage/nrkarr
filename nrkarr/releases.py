@@ -29,10 +29,13 @@ def decode_token(token):
 
 
 def build(series_title, tvdb_id, season, episodes, release, download_url):
-    """One release per available episode."""
+    """One release per available episode. release is the label dict,
+    or a callable taking the episode and returning one."""
     return [
         _release(
-            series_title, tvdb_id, season, episode, release, download_url
+            series_title, tvdb_id, season, episode,
+            release(episode) if callable(release) else release,
+            download_url,
         )
         for episode in episodes
         if is_available(episode)
