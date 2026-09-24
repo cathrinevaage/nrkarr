@@ -12,6 +12,6 @@ VOLUME /config
 EXPOSE 9121
 
 HEALTHCHECK --interval=60s --timeout=5s \
-  CMD wget -qO- http://localhost:9121/health || exit 1
+  CMD wget -qO- http://127.0.0.1:9121/health || exit 1
 
 CMD ["python3", "-m", "nrkarr"]
