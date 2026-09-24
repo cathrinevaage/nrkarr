@@ -15,12 +15,23 @@ nrk:
   base_url: https://psapi.nrk.no
   timeout: 20
 
-# Carried in the faux NZB and handed to the download client verbatim.
+# What the job spec asks the download client for. Audio entries name a
+# channel count; nrkarr resolves each to the matching group in NRK's HLS
+# master per programme. Subtitles come from the master too (all three
+# NRK tracks, with their names and flags), and synstolking from the
+# <id>SYNS programme when it exists.
 spec:
-  format: "bestvideo[height<=1080]+bestaudio/best"
-  subs: [nb-nor]
-  embed: [subs, chapters, thumbnail, metadata]
   container: mkv
+  video:
+    format: "bestvideo[height<=1080]"
+  audio:
+    - { channels: 6, title: "Norsk 5.1", language: nob, flags: [default], optional: true }
+    - { channels: 2, title: "Norsk",     language: nob }
+  described_audio:
+    { channels: 2, title: "Synstolking", language: nob, flags: [visual_impaired], optional: true }
+  forced_title_pattern: "kun ved annet språk"
+  embed: [chapters, thumbnail, metadata]
+  sidecar: []
 
 release:
   group: Nrkarr
@@ -28,6 +39,7 @@ release:
   resolution: 1080p
   video_codec: H.264
   audio_codec: AAC2.0
+  surround_audio_codec: DD5.1     # used when the first audio entry asks for 6 channels
   # Sonarr acts on the advertised size, so it has to be a real number.
   # yt-dlp reports ~15 Mbps for 1440p HEVC on NRK; 1080p AVC sits near
   # a third of that. Tune here if releases start failing size limits.

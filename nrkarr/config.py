@@ -23,10 +23,20 @@ DEFAULTS = {
         "timeout": 20,
     },
     "spec": {
-        "format": "bestvideo[height<=1080]+bestaudio/best",
-        "subs": ["nb-nor"],
-        "embed": ["subs", "chapters", "thumbnail", "metadata"],
         "container": "mkv",
+        "video": {"format": "bestvideo[height<=1080]"},
+        "audio": [
+            {"channels": 6, "title": "Norsk 5.1", "language": "nob",
+             "flags": ["default"], "optional": True},
+            {"channels": 2, "title": "Norsk", "language": "nob"},
+        ],
+        "described_audio": {
+            "channels": 2, "title": "Synstolking", "language": "nob",
+            "flags": ["visual_impaired"], "optional": True,
+        },
+        "forced_title_pattern": "kun ved annet spr\u00e5k",
+        "embed": ["chapters", "thumbnail", "metadata"],
+        "sidecar": [],
     },
     "release": {
         "group": "Nrkarr",
@@ -34,6 +44,7 @@ DEFAULTS = {
         "resolution": "1080p",
         "video_codec": "H.264",
         "audio_codec": "AAC2.0",
+        "surround_audio_codec": "DD5.1",   # NRK's 6-channel group is AC-3
         "bitrate_mbps": 5,
     },
     "cache": {

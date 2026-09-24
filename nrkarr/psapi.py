@@ -37,6 +37,17 @@ class Psapi:
             and section.get("status") == "playable"
         ]
 
+    def manifest(self, prf_id):
+        """The playback manifest, or None when the id is unknown -
+        psapi answers 400/404 for a programme that does not exist."""
+        try:
+            return self._get(f"/playback/manifest/program/{prf_id}")
+        except FetchError as error:
+            if "returned 40" in str(error):
+                return None
+
+            raise
+
     def episodes(self, slug, season_id):
         """Episodes in one season, in sequence order."""
         payload = self._get(

@@ -18,9 +18,9 @@ class EnvOverrideTest(unittest.TestCase):
         self.assertEqual(config["release"]["bitrate_mbps"], 7)
 
     def test_lists_split_on_commas(self):
-        config = apply(deepcopy(DEFAULTS), {"NRKARR_SPEC_SUBS": "nb-nor, nb-ttv"})
+        config = apply(deepcopy(DEFAULTS), {"NRKARR_SPEC_EMBED": "chapters, metadata"})
 
-        self.assertEqual(config["spec"]["subs"], ["nb-nor", "nb-ttv"])
+        self.assertEqual(config["spec"]["embed"], ["chapters", "metadata"])
 
     def test_keys_with_underscores_resolve_past_the_section(self):
         config = apply(deepcopy(DEFAULTS), {"NRKARR_SERVER_URL_BASE": "/nrkarr"})

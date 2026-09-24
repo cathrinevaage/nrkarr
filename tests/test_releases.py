@@ -91,10 +91,10 @@ class FauxNzbTest(unittest.TestCase):
     must be at least one <file>. These replay those checks."""
 
     def render(self, name="LIS - S01E01 - Nattevakt"):
-        from nrkarr.nzb import job_spec, render
+        from nrkarr.nzb import render
 
-        defaults = {"format": "best", "subs": ["nb-nor"], "embed": [], "container": "mkv"}
-        return render(job_spec("https://tv.nrk.no/se?v=X", name, defaults))
+        return render({"url": "https://tv.nrk.no/se?v=X", "name": name, "container": "mkv",
+                       "video": {"format": "bestvideo[height<=1080]"}, "audio": [], "subtitles": []})
 
     def test_passes_sonarrs_validation(self):
         from xml.etree import ElementTree

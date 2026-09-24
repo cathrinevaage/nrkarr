@@ -13,6 +13,7 @@ from .naming import to_ascii
 from .newznab import CAPS, feed
 from .psapi import Psapi
 from .resolve import Resolver, Unresolved
+from .spec import SpecBuilder
 from .tmdb import Tmdb
 
 log = logging.getLogger(__name__)
@@ -30,6 +31,8 @@ def create_app(config):
     tmdb = Tmdb(config["tmdb"]["api_key"])
     resolver = Resolver(tmdb, psapi, cache)
     known = KnownSeries(config["server"]["state"])
+    specs = SpecBuilder(psapi, config["spec"])
+    release = release_labels(config)
 
     def authorised():
         expected = config["server"]["api_key"]
@@ -53,7 +56,7 @@ def create_app(config):
                 series.tvdb_id,
                 int(season["id"]),
                 psapi.episodes(series.slug, season["id"]),
-                config["release"],
+                release,
                 download_url,
             )
             if wanted_episode is None
@@ -123,9 +126,7 @@ def create_app(config):
     @app.get("/nzb/<token>")
     def download(token):
         prf_id, name = releases.decode_token(token)
-        spec = nzb.job_spec(
-            releases.watch_url(prf_id), name, config["spec"]
-        )
+        spec = specs.build(prf_id, name)
 
         return Response(
             nzb.render(spec),
@@ -138,6 +139,17 @@ def create_app(config):
         return {"status": "ok", "known_series": len(known.all())}
 
     return app
+
+
+def release_labels(config):
+    """The release name says what the first audio track asks for."""
+    audio = config["spec"].get("audio") or []
+    labels = dict(config["release"])
+
+    if audio and audio[0].get("channels") == 6:
+        labels["audio_codec"] = labels.get("surround_audio_codec", "DD5.1")
+
+    return labels
 
 
 def _disposition(name):
