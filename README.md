@@ -81,14 +81,30 @@ services:
   nrkarr:
     image: ghcr.io/cathrinevaage/nrkarr:latest
     container_name: nrkarr
-    restart: unless-stopped
+    user: ${PUID}:${PGID}
+    environment:
+      - TZ=${TZ}
+      - NRKARR_SERVER_API_KEY=${NRKARR_API_KEY}
+      - NRKARR_TMDB_API_KEY=${TMDB_API_KEY}
+      - NRKARR_SERVER_STATE=/config/known-series.json
     ports:
       - "9121:9121"
     volumes:
       - ./nrkarr:/config
+    restart: unless-stopped
 ```
 
-### Sonarr
+The image has no PUID/PGID handling of its own; `user:` is how it runs
+as your media user, and the `/config` directory must be writable by
+that uid. With the two keys in the environment no config file is
+needed.
+
+## Adding it to Sonarr
+
+Two routes. Either way, one setting in Sonarr is mandatory and is
+covered after both.
+
+### Directly
 
 Settings → Indexers → Add → Newznab:
 
@@ -96,19 +112,100 @@ Settings → Indexers → Add → Newznab:
 |---|---|
 | URL | `http://nrkarr:9121` |
 | API Path | `/api` |
-| API Key | `server.api_key` |
+| API Key | `NRKARR_API_KEY` |
 | Categories | 5000 |
-| **Download Client** | **ytdlparr** - not "Any" |
+| Download Client | **ytdlparr** |
 
-**The Download Client field is not optional.** What nrkarr serves as an
-"NZB" is a job spec that only ytdlparr understands. Left on "Any",
-Sonarr hands grabs to whichever usenet client it picks - and a real
-SABnzbd or NZBGet given nrkarr's file fails the download with no
-articles to fetch. Pin this indexer to ytdlparr.
+### Through Prowlarr
 
-The reverse - keeping real NZBs out of ytdlparr - needs no per-indexer
-work: give your real usenet client a higher Client Priority than
-ytdlparr. See [ytdlparr's README](https://github.com/cathrinevaage/ytdlparr#routing-only-job-specs-must-reach-ytdlparr).
+Indexers → Add → **Generic Newznab**:
+
+| field | value |
+|---|---|
+| Url | `http://nrkarr:9121` - with the port; without it Prowlarr tries port 80 |
+| API Path | `/api` |
+| API Key | `NRKARR_API_KEY` |
+| **Sync Profile** | one with **RSS and Automatic Search enabled** |
+| Download Client | ytdlparr - governs grabs made from Prowlarr's own UI only |
+
+**Check the Sync Profile.** The form pre-selects one, and if that is
+an interactive-only profile the indexer syncs into Sonarr with RSS and
+Automatic Search off: manual searches work, monitoring does nothing,
+and nothing tells you why. What Sonarr ended up with:
+
+```sh
+curl -s -H "X-Api-Key: $SONARR_API_KEY" http://sonarr:8989/api/v3/indexer \
+  | jq -c '.[] | select(.name | test("nrkarr")) | {enableRss, enableAutomaticSearch, enableInteractiveSearch, downloadClientId}'
+```
+
+All three should be `true`. Prowlarr forwards `tvdbid` to nrkarr, and
+it preserves the Download Client pin (below) on every sync. Its own
+search box sends free text with no `tvdbid`, so searching nrkarr from
+Prowlarr returns nothing - search from Sonarr. Prowlarr's test search
+reports "no results" until Sonarr's first search has populated the
+[RSS](#rss) store; that is a warning, not a failure.
+
+nrkarr advertises only TV categories, so Prowlarr syncs it to Sonarr
+and skips Radarr on its own.
+
+### The Download Client pin
+
+In Sonarr, on the nrkarr indexer entry - the one added directly or the
+one Prowlarr synced - set **Download Client** to ytdlparr. What nrkarr
+serves as an "NZB" is a job spec only ytdlparr understands; left on
+"Any", Sonarr hands the grab to whichever usenet client it picks, and
+a real SABnzbd fails it with no articles to fetch. The reverse -
+keeping real NZBs out of ytdlparr - needs no per-indexer work: give
+your real usenet client a higher Client Priority than ytdlparr. See
+[ytdlparr's README](https://github.com/cathrinevaage/ytdlparr#routing-only-job-specs-must-reach-ytdlparr).
+
+### Custom format and score
+
+Releases carry the group `Nrkarr`. A custom format matching it, scored
+in every quality profile, is what makes Sonarr grab them - and the
+score must clear each profile's *minimum custom format score*, or the
+release is rejected as below minimum however good it is. Nothing else
+in the release name earns points.
+
+Create the format and score it 1000 in every profile, from anywhere
+that can reach Sonarr:
+
+```sh
+S=http://sonarr:8989/api/v3; K="X-Api-Key: $SONARR_API_KEY"
+if ! curl -s -H "$K" $S/customformat | jq -e '.[] | select(.name=="Nrkarr")' >/dev/null; then
+  curl -s -H "$K" -H 'Content-Type: application/json' -X POST $S/customformat \
+    -d '{"name":"Nrkarr","includeCustomFormatWhenRenaming":false,"specifications":[{"name":"Nrkarr","implementation":"ReleaseTitleSpecification","negate":false,"required":true,"fields":[{"name":"value","value":"-Nrkarr\\b"}]}]}' >/dev/null
+fi
+for id in $(curl -s -H "$K" $S/qualityprofile | jq '.[].id'); do
+  curl -s -H "$K" $S/qualityprofile/$id \
+    | jq '.formatItems |= map(if .name=="Nrkarr" then .score=1000 else . end)' \
+    | curl -s -H "$K" -H 'Content-Type: application/json' -X PUT $S/qualityprofile/$id -d @- \
+    | jq -c '{name, minFormatScore, nrkarr: [.formatItems[] | select(.name=="Nrkarr") | .score]}'
+done
+```
+
+Sonarr adds a new format to every profile at score 0, which is why
+the loop finds it everywhere. If recyclarr manages your profiles with
+`reset_unmatched_scores` on, declare the score there instead, or it
+is zeroed on the next sync.
+
+### Checking it
+
+Resolve a series by hand, from inside the container - `127.0.0.1`,
+not `localhost`, which resolves to IPv6 first on IPv6-enabled compose
+networks while the app listens on IPv4:
+
+```sh
+docker compose exec nrkarr sh -c 'wget -qO- "http://127.0.0.1:9121/api?t=tvsearch&tvdbid=457520&season=1&ep=1&apikey=$NRKARR_SERVER_API_KEY"'
+```
+
+One `<item>` back means the whole chain - TMDB, NRK, release naming -
+works. The log says how each search resolved:
+
+```
+INFO nrkarr.app: tvdbid 457520 -> lis (LIS)
+INFO nrkarr.app: tvdbid 81189: no NRK series titled exactly 'Breaking Bad'
+```
 
 NRK is geo-blocked to Norway. nrkarr's own lookups work from anywhere;
 the fetch ytdlparr does must originate in Norway.
