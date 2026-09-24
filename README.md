@@ -106,10 +106,9 @@ Sonarr hands grabs to whichever usenet client it picks - and a real
 SABnzbd or NZBGet given nrkarr's file fails the download with no
 articles to fetch. Pin this indexer to ytdlparr.
 
-The reverse also has to hold: every *other* usenet indexer must be
-pinned to your real usenet client, so no real NZB is ever sent to
-ytdlparr. See [ytdlparr's README](https://github.com/cathrinevaage/ytdlparr#routing-only-job-specs-must-reach-ytdlparr)
-for why "Any" is not safe on those either.
+The reverse - keeping real NZBs out of ytdlparr - needs no per-indexer
+work: give your real usenet client a higher Client Priority than
+ytdlparr. See [ytdlparr's README](https://github.com/cathrinevaage/ytdlparr#routing-only-job-specs-must-reach-ytdlparr).
 
 NRK is geo-blocked to Norway. nrkarr's own lookups work from anywhere;
 the fetch ytdlparr does must originate in Norway.
