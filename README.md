@@ -51,8 +51,8 @@ key or the v4 read access token). Everything else has defaults.
 | `server.api_key` | what Sonarr sends as `apikey` |
 | `server.url_base` | prefix when behind a reverse proxy |
 | `server.state` | the remembered-series file; keep it on the volume |
-| `spec.*` | what goes in the job spec: format, subs, embed, container |
-| `release.*` | release-name parts and the bitrate used for the size estimate |
+| `spec.*` | what the job spec asks for - see [What gets downloaded](#what-gets-downloaded) |
+| `release.*` | release-name parts and the bitrate used for the size estimate; `surround_audio_codec` is used when the first audio entry asks for six channels |
 | `cache.ttl` | seconds to cache psapi responses |
 
 Sonarr acts on the advertised size, so `release.bitrate_mbps` should
@@ -209,6 +209,35 @@ INFO nrkarr.app: tvdbid 81189: no NRK series titled exactly 'Breaking Bad'
 
 NRK is geo-blocked to Norway. nrkarr's own lookups work from anywhere;
 the fetch ytdlparr does must originate in Norway.
+
+## What gets downloaded
+
+Per episode nrkarr builds a [tracks-mode spec](https://github.com/cathrinevaage/ytdlparr#tracks-mode)
+from what NRK actually publishes for that programme:
+
+- **Video** - `spec.video.format`, default `bestvideo[height<=1080]`.
+- **Audio** - `spec.audio` names channel counts, not selectors, because
+  yt-dlp exposes neither channels nor bitrate for NRK's audio groups.
+  nrkarr reads the programme's HLS master, finds the group with that
+  many channels (the high-bitrate one when several have it) and emits
+  `bestaudio[format_id^=<group>]`. Defaults: 5.1 as default track
+  (optional - dropped when the programme has none), stereo required.
+  NRK's 6-channel group is AC-3, hence `DD5.1` in the release name.
+- **Synstolking** - NRK publishes audio description as a sibling
+  programme, `<id>SYNS`, with the same cut. When it is playable its
+  stereo track is added, titled per `spec.described_audio` and flagged
+  `visual_impaired`.
+- **Subtitles** - all renditions in the HLS master, which is where the
+  plain "Norsk" track lives; yt-dlp never lists it because the NRK
+  extractor fetches the master with subtitles stripped. Names come from
+  NRK, `hearing_impaired` from the master's characteristics, `forced`
+  from the name matching `spec.forced_title_pattern`. If the master
+  cannot be read, psapi's two files are used (forced and SDH).
+
+For episode 1 of LIS that is: 5.1, stereo, Synstolking; Norsk,
+Norsk – kun ved annet språk (forced), Norsk – med lydbeskrivelser (SDH).
+Episode 8 has no foreign dialogue and so no forced file; the list
+follows the programme.
 
 ## The faux NZB
 
