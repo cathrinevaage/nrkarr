@@ -123,7 +123,16 @@ def create_app(config):
         tvdb_id = request.args.get("tvdbid", type=int)
 
         try:
-            found = rss() if tvdb_id is None else targeted_search(tvdb_id)
+            if tvdb_id is not None:
+                found = targeted_search(tvdb_id)
+            elif _is_bare(request.args):
+                found = rss()
+            else:
+                # A text query carries a title nrkarr cannot match - the
+                # title Sonarr knows is not the one NRK knows - so it is
+                # answered with nothing, never with the feed.
+                log.info("text search %r without tvdbid: nothing", request.args.get("q", ""))
+                found = []
         except FetchError as error:
             log.error("search failed upstream: %s", error)
             found = []
@@ -173,6 +182,12 @@ def _series(tvdb_id, slug, title):
     from .resolve import ResolvedSeries
 
     return ResolvedSeries(tvdb_id=tvdb_id, slug=slug, title=title)
+
+
+def _is_bare(args):
+    """An RSS poll: no title, no id, no episode - only the mode, the
+    key and paging/category parameters."""
+    return not any(args.get(key) for key in ("q", "season", "ep", "rid", "tvmazeid", "imdbid"))
 
 
 def _season_wanted(season, wanted):

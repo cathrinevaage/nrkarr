@@ -61,6 +61,19 @@ class RouteTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"<item>", response.data)
 
+    def test_a_text_query_without_tvdbid_returns_nothing_not_the_feed(self):
+        with patch("nrkarr.app.Resolver.resolve", return_value=ResolvedSeries(1, "show", "Show")), \
+             patch("nrkarr.app.Psapi.seasons", return_value=[{"id": "1", "type": "season", "status": "playable"}]), \
+             patch("nrkarr.app.Psapi.episodes", return_value=[EPISODE]), \
+             patch("nrkarr.app.SpecBuilder.codec_label", return_value=None):
+            self.client.get("/api?t=tvsearch&tvdbid=1&apikey=k")          # populates the feed
+            fallback = self.client.get("/api?t=tvsearch&q=Some+Title&season=18&ep=10&apikey=k")
+            bare = self.client.get("/api?t=tvsearch&apikey=k&cat=5000&offset=0&limit=100")
+
+        self.assertEqual(fallback.status_code, 200)
+        self.assertNotIn(b"<item>", fallback.data)
+        self.assertIn(b"<item>", bare.data)
+
     def test_nzb_carries_the_spec_the_builder_made(self):
         from nrkarr.releases import encode_token
 
